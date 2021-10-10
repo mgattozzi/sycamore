@@ -1,0 +1,4 @@
+end state main() {
+   print("Hello, World!");
+   terminate;
+}
