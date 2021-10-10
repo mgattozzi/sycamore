@@ -1,0 +1,52 @@
+------------------ Sycamore Input ------------------
+end state main() {
+   print("I am in main!");
+   test1();
+   terminate;
+}
+
+state test1() {
+   print("I am in test1!");
+   test2();
+   print("I am back in test1!");
+}
+
+state test2() {
+   print("I am in test2!");
+}
+
+---------------- Codegen WAT Output ----------------
+(module
+  (type (;0;) (func (param i32 i32)))
+  (type (;1;) (func))
+  (import "std" "print" (func (;0;) (type 0)))
+  (func (;1;) (type 1)
+    i32.const 0
+    i32.const 13
+    call 0
+    call 2)
+  (func (;2;) (type 1)
+    i32.const 14
+    i32.const 28
+    call 0
+    call 3
+    i32.const 28
+    i32.const 47
+    call 0)
+  (func (;3;) (type 1)
+    i32.const 47
+    i32.const 61
+    call 0)
+  (memory (;0;) 1 61)
+  (export "main_memory" (memory 0))
+  (export "main" (func 1))
+  (data (;0;) (i32.const 0) "I am in main!")
+  (data (;1;) (i32.const 14) "I am in test1!")
+  (data (;2;) (i32.const 28) "I am back in test1!")
+  (data (;3;) (i32.const 47) "I am in test2!"))
+
+------------------ Code Execution ------------------
+I am in main!
+I am in test1!
+I am in test2!
+I am back in test1!
