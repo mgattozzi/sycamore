@@ -5,8 +5,6 @@ authors = ["Michael Gattozzi <self@mgattozzi.dev>"]
 description = "The Sycamore Language Compiler"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [lib]
 name = "libsyc"
 path = "src/lib.rs"
