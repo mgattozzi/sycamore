@@ -10,6 +10,7 @@ pub struct Codegen {
 
 impl Codegen {
   const PRINT: u32 = 0;
+  const PRINTLN: u32 = 1;
 
   pub fn new(stmt: Vec<Statement>, debug: bool) -> Self {
     Self {
@@ -26,6 +27,7 @@ impl Codegen {
   pub fn generate(mut self) -> Vec<u8> {
     let mut imports = ImportSection::new();
     imports.import("std", Some("print"), EntityType::Function(0));
+    imports.import("std", Some("println"), EntityType::Function(0));
 
     let mut memory = MemorySection::new();
     memory.memory(MemoryType {
@@ -47,6 +49,7 @@ impl Codegen {
     let mut literal_table: Vec<String> = Vec::new();
     let mut fn_map: HashMap<String, usize> = HashMap::new();
     fn_map.insert("print".into(), 0);
+    fn_map.insert("println".into(), 1);
 
     for fn_name in self.stmt.iter().filter_map(|a| {
       if let Statement::StateDefn { name, .. } = a {
@@ -74,7 +77,7 @@ impl Codegen {
             }
             let void_function_index = 1;
             functions.function(void_function_index);
-            exports.export("main", Export::Function(1));
+            exports.export("main", Export::Function(2));
           } else {
             let void_function_index = 1;
             functions.function(void_function_index);
@@ -102,6 +105,23 @@ impl Codegen {
                 func.instruction(Instruction::I32Const(offset));
                 func.instruction(Instruction::I32Const(offset + literal.len() as i32));
                 func.instruction(Instruction::Call(Self::PRINT));
+                literal_table.push(literal.as_str().into());
+              }
+              Statement::PrintLn(literal) => {
+                let offset = {
+                  let mut offset = 0;
+                  for lit in &literal_table {
+                    offset += lit.len();
+                  }
+                  if offset > 0 {
+                    offset += 1;
+                  }
+                  offset as i32
+                };
+                data.active(0, Instruction::I32Const(offset), literal.as_str().bytes());
+                func.instruction(Instruction::I32Const(offset));
+                func.instruction(Instruction::I32Const(offset + literal.len() as i32));
+                func.instruction(Instruction::Call(Self::PRINTLN));
                 literal_table.push(literal.as_str().into());
               }
               Statement::FnCall { name, .. } => {

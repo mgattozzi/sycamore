@@ -1,15 +1,16 @@
 end state main() {
-   print("I am in main!");
+   println("I am in main!");
    test1();
+   print("This is a print with no newline");
    terminate;
 }
 
 state test1() {
-   print("I am in test1!");
+   println("I am in test1!");
    test2();
-   print("I am back in test1!");
+   println("I am back in test1!");
 }
 
 state test2() {
-   print("I am in test2!");
+   println("I am in test2!");
 }

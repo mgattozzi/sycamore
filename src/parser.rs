@@ -73,7 +73,13 @@ impl<'lex> SycParser<'lex> {
         Some(Token::Identifier) => {
           let ident = self.mk_ident();
 
-          if ident.as_str() == "print" {
+          if ident.as_str() == "println" {
+            self.expect(Token::LParen, "No LParen for println statement");
+            let str_lit = self.string_literal();
+            self.expect(Token::RParen, "No RParen for println statement");
+            self.expect(Token::SemiColon, "No semicolon for println statement");
+            block.push(Statement::PrintLn(str_lit));
+          } else if ident.as_str() == "print" {
             self.expect(Token::LParen, "No LParen for print statement");
             let str_lit = self.string_literal();
             self.expect(Token::RParen, "No RParen for print statement");
@@ -146,6 +152,7 @@ pub enum Statement {
     input: Vec<Type>,
   },
   Print(StrLit),
+  PrintLn(StrLit),
   Terminate,
 }
 
