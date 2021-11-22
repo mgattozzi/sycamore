@@ -3,9 +3,18 @@ use std::collections::HashMap;
 use wasm_encoder::*;
 
 pub struct Codegen {
+  debug: bool,
   stmt: Vec<Statement>,
   main_mod: Module,
-  debug: bool,
+  imports: ImportSection,
+  data: DataSection,
+  memory: MemorySection,
+  types: TypeSection,
+  functions: FunctionSection,
+  exports: ExportSection,
+  codes: CodeSection,
+  literal_table: Vec<String>,
+  fn_map: HashMap<String, usize>,
 }
 
 impl Codegen {
@@ -14,9 +23,18 @@ impl Codegen {
 
   pub fn new(stmt: Vec<Statement>, debug: bool) -> Self {
     Self {
+      debug,
       stmt,
       main_mod: Module::new(),
-      debug,
+      imports: ImportSection::new(),
+      data: DataSection::new(),
+      memory: MemorySection::new(),
+      types: TypeSection::new(),
+      functions: FunctionSection::new(),
+      exports: ExportSection::new(),
+      codes: CodeSection::new(),
+      literal_table: Vec::new(),
+      fn_map: HashMap::new(),
     }
   }
 
@@ -25,31 +43,28 @@ impl Codegen {
   }
 
   pub fn generate(mut self) -> Vec<u8> {
-    let mut imports = ImportSection::new();
-    imports.import("std", Some("print"), EntityType::Function(0));
-    imports.import("std", Some("println"), EntityType::Function(0));
+    self
+      .imports
+      .import("std", Some("print"), EntityType::Function(0));
+    self
+      .imports
+      .import("std", Some("println"), EntityType::Function(0));
 
-    let mut memory = MemorySection::new();
-    memory.memory(MemoryType {
+    self.memory.memory(MemoryType {
       minimum: 1,
       maximum: None,
       memory64: false,
     });
-    let mut types = TypeSection::new();
     // print function type
-    types.function(vec![ValType::I32, ValType::I32], Vec::new());
+    self
+      .types
+      .function(vec![ValType::I32, ValType::I32], Vec::new());
     // void function type
-    types.function(Vec::new(), Vec::new());
+    self.types.function(Vec::new(), Vec::new());
 
-    let mut functions = FunctionSection::new();
-    let mut exports = ExportSection::new();
-    exports.export("main_memory", Export::Memory(0));
-    let mut codes = CodeSection::new();
-    let mut data = DataSection::new();
-    let mut literal_table: Vec<String> = Vec::new();
-    let mut fn_map: HashMap<String, usize> = HashMap::new();
-    fn_map.insert("print".into(), 0);
-    fn_map.insert("println".into(), 1);
+    self.exports.export("main_memory", Export::Memory(0));
+    self.fn_map.insert("print".into(), 0);
+    self.fn_map.insert("println".into(), 1);
 
     for fn_name in self.stmt.iter().filter_map(|a| {
       if let Statement::StateDefn { name, .. } = a {
@@ -58,7 +73,9 @@ impl Codegen {
         None
       }
     }) {
-      fn_map.insert(fn_name.as_str().into(), fn_map.len());
+      self
+        .fn_map
+        .insert(fn_name.as_str().into(), self.fn_map.len());
     }
     for statement in &self.stmt {
       match statement {
@@ -76,11 +93,11 @@ impl Codegen {
               panic!("Main must have no arguments");
             }
             let void_function_index = 1;
-            functions.function(void_function_index);
-            exports.export("main", Export::Function(2));
+            self.functions.function(void_function_index);
+            self.exports.export("main", Export::Function(2));
           } else {
             let void_function_index = 1;
-            functions.function(void_function_index);
+            self.functions.function(void_function_index);
           }
 
           let locals = Vec::new();
@@ -93,7 +110,7 @@ impl Codegen {
               Statement::Print(literal) => {
                 let offset = {
                   let mut offset = 0;
-                  for lit in &literal_table {
+                  for lit in &self.literal_table {
                     offset += lit.len();
                   }
                   if offset > 0 {
@@ -101,16 +118,18 @@ impl Codegen {
                   }
                   offset as i32
                 };
-                data.active(0, Instruction::I32Const(offset), literal.as_str().bytes());
+                self
+                  .data
+                  .active(0, Instruction::I32Const(offset), literal.as_str().bytes());
                 func.instruction(Instruction::I32Const(offset));
                 func.instruction(Instruction::I32Const(offset + literal.len() as i32));
                 func.instruction(Instruction::Call(Self::PRINT));
-                literal_table.push(literal.as_str().into());
+                self.literal_table.push(literal.as_str().into());
               }
               Statement::PrintLn(literal) => {
                 let offset = {
                   let mut offset = 0;
-                  for lit in &literal_table {
+                  for lit in &self.literal_table {
                     offset += lit.len();
                   }
                   if offset > 0 {
@@ -118,34 +137,38 @@ impl Codegen {
                   }
                   offset as i32
                 };
-                data.active(0, Instruction::I32Const(offset), literal.as_str().bytes());
+                self
+                  .data
+                  .active(0, Instruction::I32Const(offset), literal.as_str().bytes());
                 func.instruction(Instruction::I32Const(offset));
                 func.instruction(Instruction::I32Const(offset + literal.len() as i32));
                 func.instruction(Instruction::Call(Self::PRINTLN));
-                literal_table.push(literal.as_str().into());
+                self.literal_table.push(literal.as_str().into());
               }
               Statement::FnCall { name, .. } => {
-                func.instruction(Instruction::Call(*fn_map.get(name.as_str()).unwrap() as u32));
+                func.instruction(Instruction::Call(
+                  *self.fn_map.get(name.as_str()).unwrap() as u32
+                ));
               }
               Statement::StateDefn { .. } => panic!("Cannot define states inside a state"),
             }
           }
           func.instruction(Instruction::End);
 
-          codes.function(&func);
+          self.codes.function(&func);
         }
         _ => panic!("Invalid only StateDefn are allowed"),
       }
     }
 
     // Set the sections in the right order
-    self.main_mod.section(&types);
-    self.main_mod.section(&imports);
-    self.main_mod.section(&functions);
-    self.main_mod.section(&memory);
-    self.main_mod.section(&exports);
-    self.main_mod.section(&codes);
-    self.main_mod.section(&data);
+    self.main_mod.section(&self.types);
+    self.main_mod.section(&self.imports);
+    self.main_mod.section(&self.functions);
+    self.main_mod.section(&self.memory);
+    self.main_mod.section(&self.exports);
+    self.main_mod.section(&self.codes);
+    self.main_mod.section(&self.data);
     // Create and validate
     let debug = self.debug;
     let wasm = self.finish();
