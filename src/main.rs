@@ -1,11 +1,11 @@
-use clap::Clap;
+use clap::Parser;
 use libsyc::{Codegen, SycParser};
 use std::{error::Error, fs, path::PathBuf};
 use wasmtime::*;
 
 /// This doc string acts as a help message when the user runs '--help'
 /// as do all doc strings on fields
-#[derive(Clap)]
+#[derive(Parser)]
 #[clap(
   name = env!("CARGO_BIN_NAME"),
   version = env!("CARGO_PKG_VERSION"),
@@ -17,7 +17,7 @@ struct Opts {
   subcmd: SubCommand,
 }
 
-#[derive(Clap)]
+#[derive(Parser)]
 enum SubCommand {
   /// Compile sycamore code to wasm
   Build { path: PathBuf },
