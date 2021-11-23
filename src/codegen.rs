@@ -70,59 +70,9 @@ impl Codegen {
         .fn_map
         .insert(fn_name.as_str().into(), self.fn_map.len());
     }
+
     for statement in self.stmt.clone().iter() {
-      match statement {
-        Statement::StateDefn {
-          name,
-          end,
-          input,
-          statements,
-        } => {
-          if name.as_str() == "main" {
-            if !end {
-              panic!("Main must be labelled an end state");
-            }
-            if !input.is_empty() {
-              panic!("Main must have no arguments");
-            }
-            let void_function_index = 1;
-            self.functions.function(void_function_index);
-            self.exports.export("main", Export::Function(2));
-          } else {
-            let void_function_index = 1;
-            self.functions.function(void_function_index);
-          }
-
-          let locals = Vec::new();
-          self.current_func = Some(Function::new(locals));
-          for stmt in statements {
-            match stmt {
-              Statement::Terminate => {
-                // TODO: actually do something with this
-              }
-              Statement::Print(print) => print.generate(&mut self),
-              Statement::PrintLn(println) => println.generate(&mut self),
-              Statement::FnCall { name, .. } => {
-                self.current_func.as_mut().map(|f| {
-                  f.instruction(&Instruction::Call(
-                    *self.fn_map.get(name.as_str()).unwrap() as u32
-                  ));
-                  f
-                });
-              }
-              Statement::StateDefn { .. } => panic!("Cannot define states inside a state"),
-            }
-          }
-          self.current_func.as_mut().map(|f| {
-            f.instruction(&Instruction::End);
-            f
-          });
-
-          let func = self.current_func.take().unwrap();
-          self.codes.function(&func);
-        }
-        _ => panic!("Invalid only StateDefn are allowed"),
-      }
+      statement.generate(&mut self);
     }
 
     // Set the sections in the right order

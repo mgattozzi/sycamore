@@ -1,4 +1,5 @@
-use crate::{Print, PrintLn};
+use crate::{Codegen, Generate, Print, PrintLn};
+use wasm_encoder::*;
 
 #[derive(Debug, Clone)]
 pub enum Statement {
@@ -15,6 +16,63 @@ pub enum Statement {
   Print(Print),
   PrintLn(PrintLn),
   Terminate,
+}
+
+impl Generate for Statement {
+  fn generate(&self, codegen: &mut Codegen) {
+    match self {
+      Statement::StateDefn {
+        name,
+        end,
+        input,
+        statements,
+      } => {
+        if name.as_str() == "main" {
+          if !end {
+            panic!("Main must be labelled an end state");
+          }
+          if !input.is_empty() {
+            panic!("Main must have no arguments");
+          }
+          let void_function_index = 1;
+          codegen.functions.function(void_function_index);
+          codegen.exports.export("main", Export::Function(2));
+        } else {
+          let void_function_index = 1;
+          codegen.functions.function(void_function_index);
+        }
+
+        let locals = Vec::new();
+        codegen.current_func = Some(Function::new(locals));
+        for stmt in statements {
+          match stmt {
+            Statement::Terminate => {
+              // TODO: actually do something with this
+            }
+            Statement::Print(print) => print.generate(codegen),
+            Statement::PrintLn(println) => println.generate(codegen),
+            Statement::FnCall { name, .. } => {
+              codegen.current_func.as_mut().map(|f| {
+                f.instruction(&Instruction::Call(
+                  *codegen.fn_map.get(name.as_str()).unwrap() as u32,
+                ));
+                f
+              });
+            }
+            Statement::StateDefn { .. } => panic!("Cannot define states inside a state"),
+          }
+        }
+        codegen.current_func.as_mut().map(|f| {
+          f.instruction(&Instruction::End);
+          f
+        });
+
+        let func = codegen.current_func.take().unwrap();
+        codegen.codes.function(&func);
+      }
+      _ => panic!("Invalid only StateDefn are allowed"),
+    }
+  }
 }
 
 #[derive(Debug, Clone)]
