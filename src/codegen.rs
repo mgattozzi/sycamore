@@ -1,4 +1,4 @@
-use crate::{Print, PrintLn, Statement};
+use crate::{standard_library, Statement};
 use std::collections::HashMap;
 use wasm_encoder::*;
 
@@ -14,7 +14,7 @@ pub struct Codegen {
   pub exports: ExportSection,
   pub codes: CodeSection,
   pub literal_table: Vec<String>,
-  pub fn_map: HashMap<String, usize>,
+  pub fn_map: HashMap<String, u32>,
   pub current_func: Option<Function>,
 }
 
@@ -42,33 +42,30 @@ impl Codegen {
   }
 
   pub fn generate(mut self) -> Vec<u8> {
-    Print::import(&mut self);
-    PrintLn::import(&mut self);
-
     self.memory.memory(MemoryType {
       minimum: 1,
       maximum: None,
       memory64: false,
     });
-    // print function type
-    self
-      .types
-      .function(vec![ValType::I32, ValType::I32], Vec::new());
-    // void function type
-    self.types.function(Vec::new(), Vec::new());
 
     self.exports.export("main_memory", Export::Memory(0));
 
-    for fn_name in self.stmt.iter().filter_map(|a| {
-      if let Statement::StateDefn { name, .. } = a {
-        Some(name)
-      } else {
-        None
+    // Imports *must* happen first for the func number to be correct. We start
+    // off with stdlib so that we import everything we need. Then when we
+    // actually can import multiple files we would import other modules here and
+    // link them.
+    standard_library::import_stdlib(&mut self);
+
+    // Setup the function map and types after our import so that we can make
+    // calls to them properly everywhere.
+    for stmt in self.stmt.iter() {
+      if let Statement::StateDefn { name, .. } = stmt {
+        // All states are the void type for now until we deal with args
+        self.types.function(Vec::new(), Vec::new());
+        self
+          .fn_map
+          .insert(name.as_str().into(), self.fn_map.len() as u32);
       }
-    }) {
-      self
-        .fn_map
-        .insert(fn_name.as_str().into(), self.fn_map.len());
     }
 
     for statement in self.stmt.clone().iter() {
@@ -92,6 +89,8 @@ impl Codegen {
       println!("{}", wabt::wasm2wat(&wasm).unwrap_or(String::new()));
     }
 
+    // We should *not* generate incorrect wasm at all. This checks that we don't
+    // do that.
     if let Err(e) = wasmparser::validate(&wasm) {
       panic!("{}", e);
     }

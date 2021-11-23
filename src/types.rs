@@ -27,6 +27,8 @@ impl Generate for Statement {
         input,
         statements,
       } => {
+        let function_num = *codegen.fn_map.get(name.as_str()).unwrap();
+
         if name.as_str() == "main" {
           if !end {
             panic!("Main must be labelled an end state");
@@ -34,12 +36,12 @@ impl Generate for Statement {
           if !input.is_empty() {
             panic!("Main must have no arguments");
           }
-          let void_function_index = 1;
-          codegen.functions.function(void_function_index);
-          codegen.exports.export("main", Export::Function(2));
+          codegen.functions.function(function_num);
+          codegen
+            .exports
+            .export("main", Export::Function(function_num));
         } else {
-          let void_function_index = 1;
-          codegen.functions.function(void_function_index);
+          codegen.functions.function(function_num);
         }
 
         let locals = Vec::new();

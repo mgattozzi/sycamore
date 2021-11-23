@@ -1,6 +1,6 @@
 use crate::{Codegen, Generate, StdLib, StrLit};
 use wasm_encoder::*;
-use wasmtime::*;
+use wasmtime::{AsContext, Caller, Func, Store};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct PrintLn(StrLit);
@@ -48,11 +48,14 @@ impl Generate for PrintLn {
 
 impl StdLib for PrintLn {
   fn import(codegen: &mut Codegen) {
-    let len = codegen.fn_map.len();
-    codegen.fn_map.entry("println".into()).or_insert(len);
+    let fn_num = codegen.fn_map.len() as u32;
+    codegen
+      .types
+      .function(vec![ValType::I32, ValType::I32], Vec::new());
+    codegen.fn_map.entry("println".into()).or_insert(fn_num);
     codegen
       .imports
-      .import("std", Some("println"), EntityType::Function(0));
+      .import("std", Some("println"), EntityType::Function(fn_num));
   }
   fn func(store: &mut Store<()>) -> Func {
     Func::wrap(
@@ -119,11 +122,14 @@ impl Generate for Print {
 
 impl StdLib for Print {
   fn import(codegen: &mut Codegen) {
-    let len = codegen.fn_map.len();
-    codegen.fn_map.entry("print".into()).or_insert(len);
+    let fn_num = codegen.fn_map.len() as u32;
+    codegen
+      .types
+      .function(vec![ValType::I32, ValType::I32], Vec::new());
+    codegen.fn_map.entry("print".into()).or_insert(fn_num);
     codegen
       .imports
-      .import("std", Some("print"), EntityType::Function(0));
+      .import("std", Some("print"), EntityType::Function(fn_num));
   }
   fn func(store: &mut Store<()>) -> Func {
     Func::wrap(
@@ -142,4 +148,9 @@ impl StdLib for Print {
       },
     )
   }
+}
+
+pub fn import_stdlib(codegen: &mut Codegen) {
+  Print::import(codegen);
+  PrintLn::import(codegen);
 }
