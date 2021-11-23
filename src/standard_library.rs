@@ -1,5 +1,4 @@
-use crate::codegen::{Codegen, Generate, StdLib};
-use crate::parser::StrLit;
+use crate::{Codegen, Generate, StdLib, StrLit};
 use wasm_encoder::*;
 use wasmtime::*;
 

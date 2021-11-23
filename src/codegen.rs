@@ -1,4 +1,4 @@
-use crate::{parser::*, standard_library::*};
+use crate::{Print, PrintLn, Statement};
 use std::collections::HashMap;
 use wasm_encoder::*;
 

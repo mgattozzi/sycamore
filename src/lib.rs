@@ -1,9 +1,11 @@
 mod codegen;
 mod parser;
 mod standard_library;
+mod types;
 
 pub use codegen::*;
 pub use parser::*;
+pub use types::*;
 
 use crate::{codegen::StdLib, standard_library::*};
 use std::{error::Error, fs, path::PathBuf};
