@@ -104,7 +104,7 @@ impl Codegen {
               Statement::PrintLn(println) => println.generate(&mut self),
               Statement::FnCall { name, .. } => {
                 self.current_func.as_mut().map(|f| {
-                  f.instruction(Instruction::Call(
+                  f.instruction(&Instruction::Call(
                     *self.fn_map.get(name.as_str()).unwrap() as u32
                   ));
                   f
@@ -114,7 +114,7 @@ impl Codegen {
             }
           }
           self.current_func.as_mut().map(|f| {
-            f.instruction(Instruction::End);
+            f.instruction(&Instruction::End);
             f
           });
 

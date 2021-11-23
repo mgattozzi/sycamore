@@ -26,22 +26,22 @@ impl Generate for PrintLn {
     };
     codegen
       .data
-      .active(0, Instruction::I32Const(offset), literal.as_str().bytes());
+      .active(0, &Instruction::I32Const(offset), literal.as_str().bytes());
     codegen
       .current_func
       .as_mut()
       .unwrap()
-      .instruction(Instruction::I32Const(offset));
+      .instruction(&Instruction::I32Const(offset));
     codegen
       .current_func
       .as_mut()
       .unwrap()
-      .instruction(Instruction::I32Const(offset + literal.len() as i32));
+      .instruction(&Instruction::I32Const(offset + literal.len() as i32));
     codegen
       .current_func
       .as_mut()
       .unwrap()
-      .instruction(Instruction::Call(1));
+      .instruction(&Instruction::Call(1));
     codegen.literal_table.push(literal.as_str().into());
   }
 }
@@ -97,22 +97,22 @@ impl Generate for Print {
     };
     codegen
       .data
-      .active(0, Instruction::I32Const(offset), literal.as_str().bytes());
+      .active(0, &Instruction::I32Const(offset), literal.as_str().bytes());
     codegen
       .current_func
       .as_mut()
       .unwrap()
-      .instruction(Instruction::I32Const(offset));
+      .instruction(&Instruction::I32Const(offset));
     codegen
       .current_func
       .as_mut()
       .unwrap()
-      .instruction(Instruction::I32Const(offset + literal.len() as i32));
+      .instruction(&Instruction::I32Const(offset + literal.len() as i32));
     codegen
       .current_func
       .as_mut()
       .unwrap()
-      .instruction(Instruction::Call(0));
+      .instruction(&Instruction::Call(0));
     codegen.literal_table.push(literal.as_str().into());
   }
 }
