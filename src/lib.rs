@@ -2,10 +2,10 @@ mod codegen;
 mod parser;
 mod standard_library;
 
-pub use crate::standard_library::*;
 pub use codegen::*;
 pub use parser::*;
 
+use crate::{codegen::StdLib, standard_library::*};
 use std::{error::Error, fs, path::PathBuf};
 use wasmtime::*;
 
@@ -31,9 +31,9 @@ pub fn run(wasm: Vec<u8>, debug: bool) -> Result<(), Box<dyn Error>> {
   let module = Module::new(&engine, wasm)?;
   let mut store = Store::new(&engine, ());
   let std_funcs = [
-    print(&mut store).into(),
+    Print::func(&mut store).into(),
     // add println
-    println(&mut store).into(),
+    PrintLn::func(&mut store).into(),
   ];
   let instance = Instance::new(&mut store, &module, &std_funcs)?;
   let main = instance.get_typed_func::<(), (), _>(&mut store, "main")?;

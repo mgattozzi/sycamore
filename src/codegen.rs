@@ -1,26 +1,24 @@
-use crate::parser::*;
+use crate::{parser::*, standard_library::*};
 use std::collections::HashMap;
 use wasm_encoder::*;
 
 pub struct Codegen {
-  debug: bool,
-  stmt: Vec<Statement>,
-  main_mod: Module,
-  imports: ImportSection,
-  data: DataSection,
-  memory: MemorySection,
-  types: TypeSection,
-  functions: FunctionSection,
-  exports: ExportSection,
-  codes: CodeSection,
-  literal_table: Vec<String>,
-  fn_map: HashMap<String, usize>,
+  pub debug: bool,
+  pub stmt: Vec<Statement>,
+  pub main_mod: Module,
+  pub imports: ImportSection,
+  pub data: DataSection,
+  pub memory: MemorySection,
+  pub types: TypeSection,
+  pub functions: FunctionSection,
+  pub exports: ExportSection,
+  pub codes: CodeSection,
+  pub literal_table: Vec<String>,
+  pub fn_map: HashMap<String, usize>,
+  pub current_func: Option<Function>,
 }
 
 impl Codegen {
-  const PRINT: u32 = 0;
-  const PRINTLN: u32 = 1;
-
   pub fn new(stmt: Vec<Statement>, debug: bool) -> Self {
     Self {
       debug,
@@ -35,6 +33,7 @@ impl Codegen {
       codes: CodeSection::new(),
       literal_table: Vec::new(),
       fn_map: HashMap::new(),
+      current_func: None,
     }
   }
 
@@ -43,12 +42,8 @@ impl Codegen {
   }
 
   pub fn generate(mut self) -> Vec<u8> {
-    self
-      .imports
-      .import("std", Some("print"), EntityType::Function(0));
-    self
-      .imports
-      .import("std", Some("println"), EntityType::Function(0));
+    Print::import(&mut self);
+    PrintLn::import(&mut self);
 
     self.memory.memory(MemoryType {
       minimum: 1,
@@ -63,8 +58,6 @@ impl Codegen {
     self.types.function(Vec::new(), Vec::new());
 
     self.exports.export("main_memory", Export::Memory(0));
-    self.fn_map.insert("print".into(), 0);
-    self.fn_map.insert("println".into(), 1);
 
     for fn_name in self.stmt.iter().filter_map(|a| {
       if let Statement::StateDefn { name, .. } = a {
@@ -77,7 +70,7 @@ impl Codegen {
         .fn_map
         .insert(fn_name.as_str().into(), self.fn_map.len());
     }
-    for statement in &self.stmt {
+    for statement in self.stmt.clone().iter() {
       match statement {
         Statement::StateDefn {
           name,
@@ -101,60 +94,31 @@ impl Codegen {
           }
 
           let locals = Vec::new();
-          let mut func = Function::new(locals);
+          self.current_func = Some(Function::new(locals));
           for stmt in statements {
             match stmt {
               Statement::Terminate => {
                 // TODO: actually do something with this
               }
-              Statement::Print(literal) => {
-                let offset = {
-                  let mut offset = 0;
-                  for lit in &self.literal_table {
-                    offset += lit.len();
-                  }
-                  if offset > 0 {
-                    offset += 1;
-                  }
-                  offset as i32
-                };
-                self
-                  .data
-                  .active(0, Instruction::I32Const(offset), literal.as_str().bytes());
-                func.instruction(Instruction::I32Const(offset));
-                func.instruction(Instruction::I32Const(offset + literal.len() as i32));
-                func.instruction(Instruction::Call(Self::PRINT));
-                self.literal_table.push(literal.as_str().into());
-              }
-              Statement::PrintLn(literal) => {
-                let offset = {
-                  let mut offset = 0;
-                  for lit in &self.literal_table {
-                    offset += lit.len();
-                  }
-                  if offset > 0 {
-                    offset += 1;
-                  }
-                  offset as i32
-                };
-                self
-                  .data
-                  .active(0, Instruction::I32Const(offset), literal.as_str().bytes());
-                func.instruction(Instruction::I32Const(offset));
-                func.instruction(Instruction::I32Const(offset + literal.len() as i32));
-                func.instruction(Instruction::Call(Self::PRINTLN));
-                self.literal_table.push(literal.as_str().into());
-              }
+              Statement::Print(print) => print.generate(&mut self),
+              Statement::PrintLn(println) => println.generate(&mut self),
               Statement::FnCall { name, .. } => {
-                func.instruction(Instruction::Call(
-                  *self.fn_map.get(name.as_str()).unwrap() as u32
-                ));
+                self.current_func.as_mut().map(|f| {
+                  f.instruction(Instruction::Call(
+                    *self.fn_map.get(name.as_str()).unwrap() as u32
+                  ));
+                  f
+                });
               }
               Statement::StateDefn { .. } => panic!("Cannot define states inside a state"),
             }
           }
-          func.instruction(Instruction::End);
+          self.current_func.as_mut().map(|f| {
+            f.instruction(Instruction::End);
+            f
+          });
 
+          let func = self.current_func.take().unwrap();
           self.codes.function(&func);
         }
         _ => panic!("Invalid only StateDefn are allowed"),
@@ -169,6 +133,7 @@ impl Codegen {
     self.main_mod.section(&self.exports);
     self.main_mod.section(&self.codes);
     self.main_mod.section(&self.data);
+
     // Create and validate
     let debug = self.debug;
     let wasm = self.finish();
@@ -183,4 +148,13 @@ impl Codegen {
 
     wasm
   }
+}
+
+pub trait Generate {
+  fn generate(&self, codegen: &mut Codegen);
+}
+
+pub trait StdLib: Generate {
+  fn import(codegen: &mut Codegen);
+  fn func(store: &mut wasmtime::Store<()>) -> wasmtime::Func;
 }

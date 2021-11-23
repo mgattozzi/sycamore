@@ -6,6 +6,7 @@
 //     .finish()
 //     .print(Source::from(include_str!("../examples/sample.tao")))
 //     .unwrap();
+use crate::standard_library::{Print, PrintLn};
 use logos::{Lexer, Logos};
 
 pub struct SycParser<'lex> {
@@ -78,13 +79,13 @@ impl<'lex> SycParser<'lex> {
             let str_lit = self.string_literal();
             self.expect(Token::RParen, "No RParen for println statement");
             self.expect(Token::SemiColon, "No semicolon for println statement");
-            block.push(Statement::PrintLn(str_lit));
+            block.push(Statement::PrintLn(PrintLn::new(str_lit)));
           } else if ident.as_str() == "print" {
             self.expect(Token::LParen, "No LParen for print statement");
             let str_lit = self.string_literal();
             self.expect(Token::RParen, "No RParen for print statement");
             self.expect(Token::SemiColon, "No semicolon for print statement");
-            block.push(Statement::Print(str_lit));
+            block.push(Statement::Print(Print::new(str_lit)));
           } else {
             self.expect(Token::LParen, "No LParen for fn statement");
             self.expect(Token::RParen, "No funcs with more than 0 args for now");
@@ -139,7 +140,7 @@ impl<'lex> SycParser<'lex> {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Statement {
   StateDefn {
     end: bool,
@@ -151,17 +152,17 @@ pub enum Statement {
     name: Ident,
     input: Vec<Type>,
   },
-  Print(StrLit),
-  PrintLn(StrLit),
+  Print(Print),
+  PrintLn(PrintLn),
   Terminate,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Type {
   I32,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Ident(String);
 
 impl Ident {
@@ -173,7 +174,7 @@ impl Ident {
   }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct StrLit(String);
 
 impl StrLit {
