@@ -4,7 +4,7 @@ use wasm_encoder::*;
 #[derive(Debug, Clone)]
 pub enum Statement {
   StateDefn {
-    end: bool,
+    terminating: bool,
     name: Ident,
     input: Vec<Type>,
     statements: Vec<Statement>,
@@ -23,14 +23,14 @@ impl Generate for Statement {
     match self {
       Statement::StateDefn {
         name,
-        end,
+        terminating,
         input,
         statements,
       } => {
         let function_num = *codegen.fn_map.get(name.as_str()).unwrap();
 
         if name.as_str() == "main" {
-          if !end {
+          if !terminating {
             panic!("Main must be labelled an end state");
           }
           if !input.is_empty() {

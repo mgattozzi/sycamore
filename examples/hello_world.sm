@@ -1,4 +1,4 @@
-end state main() {
+terminating state main() {
    println("Hello, World!");
    terminate;
 }

@@ -112,10 +112,10 @@ impl<'lex> SycParser<'lex> {
     let mut statements = Vec::new();
     loop {
       match self.next_opt() {
-        Some(Token::End) => {
+        Some(Token::Terminating) => {
           self.expect(Token::State, "No state token after end");
           let state_defn = Statement::StateDefn {
-            end: true,
+            terminating: true,
             name: self.ident(),
             input: self.parse_args(),
             statements: self.parse_block(),
@@ -124,7 +124,7 @@ impl<'lex> SycParser<'lex> {
         }
         Some(Token::State) => {
           let state_defn = Statement::StateDefn {
-            end: false,
+            terminating: false,
             name: self.ident(),
             input: self.parse_args(),
             statements: self.parse_block(),
@@ -163,8 +163,8 @@ pub enum Token {
   Else,
 
   // State
-  #[token("end")]
-  End,
+  #[token("terminating")]
+  Terminating,
   #[token("state")]
   State,
 
