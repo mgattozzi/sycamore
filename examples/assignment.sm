@@ -1,0 +1,5 @@
+terminating state main() {
+   my-variable <- 150;
+   println("Successful assignment!");
+   terminate;
+}

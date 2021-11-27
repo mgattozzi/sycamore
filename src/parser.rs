@@ -6,20 +6,28 @@
 //     .finish()
 //     .print(Source::from(include_str!("../examples/sample.tao")))
 //     .unwrap();
-use crate::{Ident, Print, PrintLn, Statement, StrLit, Type};
-use logos::{Lexer, Logos};
+use crate::{Ident, Print, PrintLn, Statement, StrLit, SycValue, Type};
+use logos::{Logos, SpannedIter};
+use std::{iter::Peekable, ops::Range};
 
 pub struct SycParser<'lex> {
-  _input: &'lex str,
-  lex: Lexer<'lex, Token>,
+  input: &'lex str,
+  lex: Peekable<SpannedIter<'lex, Token>>,
+  current: Option<(Token, Range<usize>)>,
 }
 
 impl<'lex> SycParser<'lex> {
-  pub fn new(_input: &'lex str) -> Self {
-    let lex = Token::lexer(_input);
-    Self { _input, lex }
+  pub fn new(input: &'lex str) -> Self {
+    let lex = Token::lexer(input).spanned().peekable();
+    Self {
+      input,
+      lex,
+      current: None,
+    }
   }
-
+  pub fn slice(&self) -> &'lex str {
+    &self.input[self.current.as_ref().unwrap().1.clone()]
+  }
   pub fn expect(&mut self, t: Token, err: &str) {
     if self.next() != t {
       panic!("{}", err);
@@ -28,9 +36,16 @@ impl<'lex> SycParser<'lex> {
 
   pub fn next(&mut self) -> Token {
     match self.lex.next() {
-      Some(t) => t,
+      Some((t, r)) => {
+        self.current = Some((t, r));
+        t
+      }
       None => panic!("Hit EOF"),
     }
+  }
+
+  pub fn peek(&mut self, tok: Token) -> bool {
+    self.lex.peek().map(|(t, _)| t) == Some(&tok)
   }
 
   pub fn ident(&mut self) -> Ident {
@@ -39,7 +54,11 @@ impl<'lex> SycParser<'lex> {
   }
 
   pub fn mk_ident(&mut self) -> Ident {
-    Ident::new(self.lex.slice())
+    Ident::new(self.slice())
+  }
+
+  pub fn mk_number(&mut self) -> SycValue {
+    SycValue::I32(self.slice().parse::<i32>().expect("An i32 number"))
   }
 
   pub fn string_literal(&mut self) -> StrLit {
@@ -48,13 +67,14 @@ impl<'lex> SycParser<'lex> {
   }
 
   pub fn mk_str_lit(&mut self) -> StrLit {
-    let slice = self.lex.slice();
+    let slice = self.slice();
     // Get rid of the quotes here
     StrLit::new(&slice[1..slice.len() - 1])
   }
 
   pub fn next_opt(&mut self) -> Option<Token> {
-    self.lex.next()
+    self.current = self.lex.next();
+    self.current.as_ref().map(|c| c.0)
   }
 
   pub fn parse_args(&mut self) -> Vec<Type> {
@@ -86,6 +106,12 @@ impl<'lex> SycParser<'lex> {
             self.expect(Token::RParen, "No RParen for print statement");
             self.expect(Token::SemiColon, "No semicolon for print statement");
             block.push(Statement::Print(Print::new(str_lit)));
+          } else if self.peek(Token::Assign) {
+            self.next();
+            self.next();
+            let value = self.mk_number();
+            self.expect(Token::SemiColon, "No semicolon for assignment statement");
+            block.push(Statement::Assignment { name: ident, value });
           } else {
             self.expect(Token::LParen, "No LParen for fn statement");
             self.expect(Token::RParen, "No funcs with more than 0 args for now");
@@ -140,8 +166,12 @@ impl<'lex> SycParser<'lex> {
   }
 }
 
-#[derive(Logos, Debug, PartialEq, Eq)]
+#[derive(Logos, Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Token {
+  // Assignment
+  #[token("<-")]
+  Assign,
+
   // Comparators
   #[token("and")]
   And,
@@ -182,7 +212,10 @@ pub enum Token {
   #[regex(r#""([^"\\]|\\t|\\u|\\n|\\")*""#)]
   StringLiteral,
 
-  #[regex("[a-zA-Z$_][a-zA-Z0-9$_]*")]
+  #[regex("[0-9]*")]
+  Number,
+
+  #[regex("[a-zA-Z$-][a-zA-Z0-9$-]*")]
   Identifier,
 
   #[regex(r"[ \t\n\f]+", logos::skip)]

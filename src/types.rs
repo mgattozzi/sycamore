@@ -1,8 +1,13 @@
 use crate::{Codegen, Generate, Print, PrintLn};
+use std::collections::HashMap;
 use wasm_encoder::*;
 
 #[derive(Debug, Clone)]
 pub enum Statement {
+  Assignment {
+    name: Ident,
+    value: SycValue,
+  },
   StateDefn {
     terminating: bool,
     name: Ident,
@@ -44,10 +49,34 @@ impl Generate for Statement {
           codegen.functions.function(function_num);
         }
 
-        let locals = Vec::new();
-        codegen.current_func = Some(Function::new(locals));
+        let mut locals = Vec::new();
+        let mut locals_map = HashMap::new();
+
+        // Create all the locals to be declared in the function
+        for stmt in statements {
+          if let Statement::Assignment { value, name } = stmt {
+            locals_map.insert(name.as_str(), locals_map.len() as u32);
+            locals.push(value.as_val_type());
+          }
+        }
+        codegen.current_func = Some(Function::new_with_locals_types(locals));
+
         for stmt in statements {
           match stmt {
+            Statement::Assignment { name, value } => {
+              codegen.current_func.as_mut().map(|f| {
+                let local = locals_map
+                  .get(name.as_str())
+                  .expect("locals_map was already populated");
+                match value {
+                  SycValue::I32(v) => {
+                    f.instruction(&Instruction::I32Const(*v));
+                  }
+                }
+                f.instruction(&Instruction::LocalSet(*local));
+                f
+              });
+            }
             Statement::Terminate => {
               // TODO: actually do something with this
             }
@@ -106,5 +135,21 @@ impl StrLit {
   }
   pub fn len(&self) -> usize {
     self.0.len()
+  }
+}
+
+#[derive(Debug, Clone)]
+pub enum SycValue {
+  I32(i32),
+}
+
+impl SycValue {
+  pub fn from_i32(input: i32) -> Self {
+    Self::I32(input)
+  }
+  pub fn as_val_type(&self) -> ValType {
+    match self {
+      Self::I32(_) => ValType::I32,
+    }
   }
 }
