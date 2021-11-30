@@ -3,7 +3,7 @@ use wasm_encoder::*;
 use wasmtime::{AsContext, Caller, Func, Store};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct PrintLn(StrLit);
+pub struct PrintLn(pub StrLit);
 
 impl PrintLn {
   pub fn new(lit: StrLit) -> Self {
@@ -13,28 +13,14 @@ impl PrintLn {
 
 impl Generate for PrintLn {
   fn generate(&self, codegen: &mut Codegen) {
-    let literal = &self.0;
-    let offset = {
-      let mut offset = 0;
-      for lit in &codegen.literal_table {
-        offset += lit.len();
-      }
-      if offset > 0 {
-        offset += 1;
-      }
-      offset as i32
-    };
-    codegen
-      .data
-      .active(0, &Instruction::I32Const(offset), literal.as_str().bytes());
+    let offset = *codegen.literal_map.get(self.0.as_str()).unwrap();
     codegen
       .current_func
       .instruction(&Instruction::I32Const(offset));
     codegen
       .current_func
-      .instruction(&Instruction::I32Const(offset + literal.len() as i32));
+      .instruction(&Instruction::I32Const(offset + self.0.len() as i32));
     codegen.current_func.instruction(&Instruction::Call(1));
-    codegen.literal_table.push(literal.as_str().into());
   }
 }
 
@@ -72,7 +58,7 @@ impl StdLib for PrintLn {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Print(StrLit);
+pub struct Print(pub StrLit);
 
 impl Print {
   pub fn new(lit: StrLit) -> Self {
@@ -82,28 +68,14 @@ impl Print {
 
 impl Generate for Print {
   fn generate(&self, codegen: &mut Codegen) {
-    let literal = &self.0;
-    let offset = {
-      let mut offset = 0;
-      for lit in &codegen.literal_table {
-        offset += lit.len();
-      }
-      if offset > 0 {
-        offset += 1;
-      }
-      offset as i32
-    };
-    codegen
-      .data
-      .active(0, &Instruction::I32Const(offset), literal.as_str().bytes());
+    let offset = *codegen.literal_map.get(self.0.as_str()).unwrap();
     codegen
       .current_func
       .instruction(&Instruction::I32Const(offset));
     codegen
       .current_func
-      .instruction(&Instruction::I32Const(offset + literal.len() as i32));
+      .instruction(&Instruction::I32Const(offset + self.0.len() as i32));
     codegen.current_func.instruction(&Instruction::Call(0));
-    codegen.literal_table.push(literal.as_str().into());
   }
 }
 

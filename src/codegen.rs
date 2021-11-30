@@ -1,4 +1,7 @@
-use crate::{standard_library, Statement};
+use crate::{
+  standard_library::{self, Print, PrintLn},
+  Statement,
+};
 use std::collections::HashMap;
 use wasm_encoder::*;
 
@@ -14,7 +17,7 @@ pub struct Codegen {
   pub functions: FunctionSection,
   pub exports: ExportSection,
   pub codes: CodeSection,
-  pub literal_table: Vec<String>,
+  pub literal_map: HashMap<String, i32>,
   pub fn_map: HashMap<String, u32>,
   pub current_func: Function,
 }
@@ -62,7 +65,7 @@ impl Codegen {
       functions: FunctionSection::new(),
       exports: ExportSection::new(),
       codes: CodeSection::new(),
-      literal_table: Vec::new(),
+      literal_map: HashMap::new(),
       fn_map: HashMap::new(),
       current_func: Function::new(Vec::new()),
     }
@@ -89,9 +92,13 @@ impl Codegen {
     standard_library::import_stdlib(&mut self);
 
     // Setup the function map and types after our import so that we can make
-    // calls to them properly everywhere.
+    // calls to them properly everywhere. Also create all of our string literals
+    // before hand.
     for stmt in self.stmt.iter() {
-      if let Statement::StateDefn { name, .. } = stmt {
+      if let Statement::StateDefn {
+        name, statements, ..
+      } = stmt
+      {
         // All states are the void type for now until we deal with args
         self.types.function(Vec::new(), Vec::new());
         let name = name.as_str().to_string();
@@ -99,6 +106,29 @@ impl Codegen {
         self.name.function_names.append(idx, &name);
         self.name.type_names.append(idx, &name);
         self.fn_map.insert(name, idx);
+
+        // Setup literals ahead of time in our data section
+        for stmt in statements {
+          match stmt {
+            Statement::Print(Print(literal)) | Statement::PrintLn(PrintLn(literal)) => {
+              let offset = {
+                let mut offset = 0;
+                for lit in self.literal_map.keys() {
+                  offset += lit.len();
+                }
+                if offset > 0 {
+                  offset += 1;
+                }
+                offset as i32
+              };
+              self
+                .data
+                .active(0, &Instruction::I32Const(offset), literal.as_str().bytes());
+              self.literal_map.insert(literal.as_str().into(), offset);
+            }
+            _ => {}
+          }
+        }
       }
     }
 
