@@ -16,7 +16,7 @@ pub struct Codegen {
   pub codes: CodeSection,
   pub literal_table: Vec<String>,
   pub fn_map: HashMap<String, u32>,
-  pub current_func: Option<Function>,
+  pub current_func: Function,
 }
 
 pub struct Name {
@@ -64,7 +64,7 @@ impl Codegen {
       codes: CodeSection::new(),
       literal_table: Vec::new(),
       fn_map: HashMap::new(),
-      current_func: None,
+      current_func: Function::new(Vec::new()),
     }
   }
 

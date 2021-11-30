@@ -59,23 +59,22 @@ impl Generate for Statement {
             locals.push(value.as_val_type());
           }
         }
-        codegen.current_func = Some(Function::new_with_locals_types(locals));
+        codegen.current_func = Function::new_with_locals_types(locals);
 
         for stmt in statements {
           match stmt {
             Statement::Assignment { name, value } => {
-              codegen.current_func.as_mut().map(|f| {
-                let local = locals_map
-                  .get(name.as_str())
-                  .expect("locals_map was already populated");
-                match value {
-                  SycValue::I32(v) => {
-                    f.instruction(&Instruction::I32Const(*v));
-                  }
+              let local = locals_map
+                .get(name.as_str())
+                .expect("locals_map was already populated");
+              match value {
+                SycValue::I32(v) => {
+                  codegen.current_func.instruction(&Instruction::I32Const(*v));
                 }
-                f.instruction(&Instruction::LocalSet(*local));
-                f
-              });
+              }
+              codegen
+                .current_func
+                .instruction(&Instruction::LocalSet(*local));
             }
             Statement::Terminate => {
               // TODO: actually do something with this
@@ -83,28 +82,21 @@ impl Generate for Statement {
             Statement::Print(print) => print.generate(codegen),
             Statement::PrintLn(println) => println.generate(codegen),
             Statement::FnCall { name, .. } => {
-              codegen.current_func.as_mut().map(|f| {
-                f.instruction(&Instruction::Call(
-                  *codegen.fn_map.get(name.as_str()).unwrap() as u32,
-                ));
-                f
-              });
+              codegen.current_func.instruction(&Instruction::Call(
+                *codegen.fn_map.get(name.as_str()).unwrap() as u32,
+              ));
             }
             Statement::StateDefn { .. } => panic!("Cannot define states inside a state"),
           }
         }
-        codegen.current_func.as_mut().map(|f| {
-          f.instruction(&Instruction::End);
-          f
-        });
+        codegen.current_func.instruction(&Instruction::End);
 
-        let func = codegen.current_func.take().unwrap();
         let mut local_names = NameMap::new();
         for (name, idx) in locals_map.iter() {
           local_names.append(*idx, name);
         }
         codegen.name.local_names.append(function_num, &local_names);
-        codegen.codes.function(&func);
+        codegen.codes.function(&codegen.current_func);
       }
       _ => panic!("Invalid only StateDefn are allowed"),
     }
