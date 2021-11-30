@@ -9,6 +9,7 @@ pub struct Codegen {
   pub imports: ImportSection,
   pub data: DataSection,
   pub memory: MemorySection,
+  pub name: Name,
   pub types: TypeSection,
   pub functions: FunctionSection,
   pub exports: ExportSection,
@@ -16,6 +17,35 @@ pub struct Codegen {
   pub literal_table: Vec<String>,
   pub fn_map: HashMap<String, u32>,
   pub current_func: Option<Function>,
+}
+
+pub struct Name {
+  pub function_names: NameMap,
+  pub memory_names: NameMap,
+  pub type_names: NameMap,
+  pub local_names: IndirectNameMap,
+}
+
+impl Name {
+  pub fn new() -> Self {
+    Self {
+      function_names: NameMap::new(),
+      memory_names: NameMap::new(),
+      type_names: NameMap::new(),
+      local_names: IndirectNameMap::new(),
+    }
+  }
+
+  pub fn make_section(&self) -> NameSection {
+    let mut section = NameSection::new();
+    // Set all of the debug names
+    section.module("main");
+    section.functions(&self.function_names);
+    section.locals(&self.local_names);
+    section.types(&self.type_names);
+    section.memories(&self.memory_names);
+    section
+  }
 }
 
 impl Codegen {
@@ -27,6 +57,7 @@ impl Codegen {
       imports: ImportSection::new(),
       data: DataSection::new(),
       memory: MemorySection::new(),
+      name: Name::new(),
       types: TypeSection::new(),
       functions: FunctionSection::new(),
       exports: ExportSection::new(),
@@ -49,6 +80,7 @@ impl Codegen {
     });
 
     self.exports.export("main_memory", Export::Memory(0));
+    self.name.memory_names.append(0, "main_memory");
 
     // Imports *must* happen first for the func number to be correct. We start
     // off with stdlib so that we import everything we need. Then when we
@@ -62,9 +94,11 @@ impl Codegen {
       if let Statement::StateDefn { name, .. } = stmt {
         // All states are the void type for now until we deal with args
         self.types.function(Vec::new(), Vec::new());
-        self
-          .fn_map
-          .insert(name.as_str().into(), self.fn_map.len() as u32);
+        let name = name.as_str().to_string();
+        let idx = self.fn_map.len() as u32;
+        self.name.function_names.append(idx, &name);
+        self.name.type_names.append(idx, &name);
+        self.fn_map.insert(name, idx);
       }
     }
 
@@ -80,13 +114,19 @@ impl Codegen {
     self.main_mod.section(&self.exports);
     self.main_mod.section(&self.codes);
     self.main_mod.section(&self.data);
+    self.main_mod.section(&self.name.make_section());
 
     // Create and validate
     let debug = self.debug;
     let wasm = self.finish();
     if debug {
       println!("---------------- Codegen WAT Output ----------------");
-      println!("{}", wabt::wasm2wat(&wasm).unwrap_or(String::new()));
+      let wat = wabt::Wasm2Wat::new()
+        .read_debug_names(true)
+        .convert(&wasm)
+        .map(|buf| String::from_utf8(buf.as_ref().to_vec()).unwrap())
+        .unwrap();
+      println!("{}", wat);
     }
 
     // We should *not* generate incorrect wasm at all. This checks that we don't

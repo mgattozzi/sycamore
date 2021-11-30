@@ -56,6 +56,9 @@ impl StdLib for PrintLn {
     codegen
       .imports
       .import("std", Some("println"), EntityType::Function(fn_num));
+    codegen.name.function_names.append(fn_num, "println");
+    codegen.name.type_names.append(fn_num, "println");
+    codegen.name.local_names.append(fn_num, &NameMap::new());
   }
   fn func(store: &mut Store<()>) -> Func {
     Func::wrap(
@@ -130,6 +133,9 @@ impl StdLib for Print {
     codegen
       .imports
       .import("std", Some("print"), EntityType::Function(fn_num));
+    codegen.name.function_names.append(fn_num, "print");
+    codegen.name.type_names.append(fn_num, "print");
+    codegen.name.local_names.append(fn_num, &NameMap::new());
   }
   fn func(store: &mut Store<()>) -> Func {
     Func::wrap(

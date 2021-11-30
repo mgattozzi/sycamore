@@ -99,6 +99,11 @@ impl Generate for Statement {
         });
 
         let func = codegen.current_func.take().unwrap();
+        let mut local_names = NameMap::new();
+        for (name, idx) in locals_map.iter() {
+          local_names.append(*idx, name);
+        }
+        codegen.name.local_names.append(function_num, &local_names);
         codegen.codes.function(&func);
       }
       _ => panic!("Invalid only StateDefn are allowed"),
