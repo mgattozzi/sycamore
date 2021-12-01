@@ -1,5 +1,5 @@
 use clap::Parser;
-use libsyc::{build, run};
+use libsyc::{build, run, run_path};
 use std::{error::Error, path::PathBuf};
 
 /// This doc string acts as a help message when the user runs '--help'
@@ -22,9 +22,15 @@ enum SubCommand {
   Build { path: PathBuf },
   /// Compile sycamore code to wasm and run it
   Run {
+    /// Path to the sycamore source code or compiled wasm module
     path: PathBuf,
     #[clap(short, long)]
+    /// Run with debug information. Mostly useful for looking at compilation
+    /// output
     debug: bool,
+    #[clap(short, long)]
+    /// The path given is a compiled sycamore wasm module that should be run
+    wasm: bool,
   },
 }
 
@@ -33,9 +39,17 @@ fn main() -> Result<(), Box<dyn Error>> {
 
   match opts.subcmd {
     SubCommand::Build { mut path } => build(&mut path, false).map(drop),
-    SubCommand::Run { mut path, debug } => {
-      let wasm = build(&mut path, debug)?;
-      run(wasm, debug)
+    SubCommand::Run {
+      mut path,
+      debug,
+      wasm,
+    } => {
+      if !wasm {
+        let cwasm = build(&mut path, debug)?;
+        run(cwasm, debug)
+      } else {
+        run_path(path, debug)
+      }
     }
   }
 }

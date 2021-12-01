@@ -19,18 +19,31 @@ pub fn build(path: &mut PathBuf, debug: bool) -> Result<Vec<u8>, Box<dyn Error>>
   }
   let parsed = SycParser::new(&input).parse();
   let wasm = Codegen::new(parsed, debug).generate();
-
-  path.set_extension("wasm");
-  fs::write(path.file_name().unwrap(), &wasm)?;
-  Ok(wasm)
+  let cwasm = Engine::new(&Config::new())?.precompile_module(&wasm)?;
+  path.set_extension("csm");
+  fs::write(path.file_name().unwrap(), &cwasm)?;
+  Ok(cwasm)
 }
 
-pub fn run(wasm: Vec<u8>, debug: bool) -> Result<(), Box<dyn Error>> {
+pub fn run(csm: Vec<u8>, debug: bool) -> Result<(), Box<dyn Error>> {
   if debug {
     println!("------------------ Code Execution ------------------");
   }
-  let engine = Engine::default();
-  let module = Module::new(&engine, wasm)?;
+  let engine = Engine::new(&Config::new())?;
+  let module = unsafe { Module::deserialize(&engine, csm)? };
+  run_inner(engine, module)
+}
+
+pub fn run_path(path: PathBuf, debug: bool) -> Result<(), Box<dyn Error>> {
+  if debug {
+    println!("------------------ Code Execution ------------------");
+  }
+  let engine = Engine::new(&Config::new())?;
+  let module = unsafe { Module::deserialize_file(&engine, path)? };
+  run_inner(engine, module)
+}
+
+fn run_inner(engine: Engine, module: Module) -> Result<(), Box<dyn Error>> {
   let mut store = Store::new(&engine, ());
   let std_funcs = [
     Print::func(&mut store).into(),
