@@ -1,5 +1,5 @@
 use clap::Parser;
-use libsyc::{build, run, run_path};
+use libsyc::{build, run};
 use std::{error::Error, path::PathBuf};
 
 /// This doc string acts as a help message when the user runs '--help'
@@ -48,7 +48,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         let cwasm = build(&mut path, debug)?;
         run(cwasm, debug)
       } else {
-        run_path(path, debug)
+        let cwasm = std::fs::read(path)?;
+        run(cwasm, debug)
       }
     }
   }

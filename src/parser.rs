@@ -1,12 +1,7 @@
-//use ariadne::{Label, Report, ReportKind, Source};
-// Report::build(ReportKind::Error, (), 34)
-//     .with_message("Incompatible types")
-//     .with_label(Label::new(32..33).with_message("This is of type Nat"))
-//     .with_label(Label::new(42..45).with_message("This is of type Str"))
-//     .finish()
-//     .print(Source::from(include_str!("../examples/sample.tao")))
-//     .unwrap();
-use crate::{Ident, Print, PrintLn, Statement, StrLit, SycValue, Type};
+use crate::{
+  types::{Ident, Statement, StrLit, SycValue, Type},
+  wasi::Wasi,
+};
 use logos::{Logos, SpannedIter};
 use std::{iter::Peekable, ops::Range};
 
@@ -99,13 +94,13 @@ impl<'lex> SycParser<'lex> {
             let str_lit = self.string_literal();
             self.expect(Token::RParen, "No RParen for println statement");
             self.expect(Token::SemiColon, "No semicolon for println statement");
-            block.push(Statement::PrintLn(PrintLn::new(str_lit)));
+            block.push(Statement::Wasi(Wasi::Println(str_lit)));
           } else if ident.as_str() == "print" {
             self.expect(Token::LParen, "No LParen for print statement");
             let str_lit = self.string_literal();
             self.expect(Token::RParen, "No RParen for print statement");
             self.expect(Token::SemiColon, "No semicolon for print statement");
-            block.push(Statement::Print(Print::new(str_lit)));
+            block.push(Statement::Wasi(Wasi::Print(str_lit)));
           } else if self.peek(Token::Assign) {
             self.next();
             self.next();

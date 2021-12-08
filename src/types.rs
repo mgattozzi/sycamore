@@ -1,4 +1,7 @@
-use crate::{Codegen, Generate, Print, PrintLn};
+use crate::{
+  codegen::{Codegen, Generate},
+  wasi::Wasi,
+};
 use std::collections::HashMap;
 use wasm_encoder::*;
 
@@ -18,8 +21,7 @@ pub enum Statement {
     name: Ident,
     input: Vec<Type>,
   },
-  Print(Print),
-  PrintLn(PrintLn),
+  Wasi(Wasi),
   Terminate,
 }
 
@@ -44,7 +46,7 @@ impl Generate for Statement {
           codegen.functions.function(function_num);
           codegen
             .exports
-            .export("main", Export::Function(function_num));
+            .export("_start", Export::Function(function_num));
         } else {
           codegen.functions.function(function_num);
         }
@@ -59,7 +61,7 @@ impl Generate for Statement {
             locals.push(value.as_val_type());
           }
         }
-        codegen.current_func = Function::new_with_locals_types(locals);
+        codegen.current_func = Some(Function::new_with_locals_types(locals));
 
         for stmt in statements {
           match stmt {
@@ -69,40 +71,40 @@ impl Generate for Statement {
                 .expect("locals_map was already populated");
               match value {
                 SycValue::I32(v) => {
-                  codegen.current_func.instruction(&Instruction::I32Const(*v));
+                  codegen.instruction(Instruction::I32Const(*v));
                 }
               }
-              codegen
-                .current_func
-                .instruction(&Instruction::LocalSet(*local));
+              codegen.instruction(Instruction::LocalSet(*local));
             }
             Statement::Terminate => {
               // TODO: actually do something with this
             }
-            Statement::Print(print) => print.generate(codegen),
-            Statement::PrintLn(println) => println.generate(codegen),
+            Statement::Wasi(wasi) => wasi.generate(codegen),
             Statement::FnCall { name, .. } => {
-              codegen.current_func.instruction(&Instruction::Call(
+              codegen.instruction(Instruction::Call(
                 *codegen.fn_map.get(name.as_str()).unwrap() as u32,
               ));
             }
             Statement::StateDefn { .. } => panic!("Cannot define states inside a state"),
           }
         }
-        codegen.current_func.instruction(&Instruction::End);
+        codegen.instruction(Instruction::End);
 
         let mut local_names = NameMap::new();
         for (name, idx) in locals_map.iter() {
           local_names.append(*idx, name);
         }
         codegen.name.local_names.append(function_num, &local_names);
-        codegen.codes.function(&codegen.current_func);
+        codegen
+          .codes
+          .function(&codegen.current_func.take().unwrap());
       }
       _ => panic!("Invalid only StateDefn are allowed"),
     }
   }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum Type {
   I32,
@@ -141,6 +143,7 @@ pub enum SycValue {
 }
 
 impl SycValue {
+  #[allow(dead_code)]
   pub fn from_i32(input: i32) -> Self {
     Self::I32(input)
   }
