@@ -1,4 +1,4 @@
-use crate::{standard_library, Statement};
+use crate::{context::SycContext, standard_library, Statement};
 use std::collections::HashMap;
 use wasm_encoder::*;
 
@@ -80,7 +80,10 @@ impl Codegen {
     self.main_mod.section(&self.exports);
     self.main_mod.section(&self.codes);
     self.main_mod.section(&self.data);
-
+    self.main_mod.section(&CustomSection {
+      name: "lmao",
+      data: b"lmaaaaaaaaao",
+    });
     // Create and validate
     let debug = self.debug;
     let wasm = self.finish();
@@ -89,11 +92,11 @@ impl Codegen {
       println!("{}", wabt::wasm2wat(&wasm).unwrap_or(String::new()));
     }
 
-    // We should *not* generate incorrect wasm at all. This checks that we don't
-    // do that.
-    if let Err(e) = wasmparser::validate(&wasm) {
-      panic!("{}", e);
-    }
+    // // We should *not* generate incorrect wasm at all. This checks that we don't
+    // // do that.
+    // if let Err(e) = wasmparser::validate(&wasm) {
+    //   panic!("{}", e);
+    // }
 
     wasm
   }
@@ -105,5 +108,5 @@ pub trait Generate {
 
 pub trait StdLib: Generate {
   fn import(codegen: &mut Codegen);
-  fn func(store: &mut wasmtime::Store<()>) -> wasmtime::Func;
+  fn func(store: &mut wasmtime::Store<SycContext>) -> wasmtime::Func;
 }

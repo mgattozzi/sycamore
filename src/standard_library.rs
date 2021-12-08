@@ -1,4 +1,4 @@
-use crate::{Codegen, Generate, StdLib, StrLit};
+use crate::{context::SycContext, Codegen, Generate, StdLib, StrLit};
 use wasm_encoder::*;
 use wasmtime::{AsContext, Caller, Func, Store};
 
@@ -57,10 +57,10 @@ impl StdLib for PrintLn {
       .imports
       .import("std", Some("println"), EntityType::Function(fn_num));
   }
-  fn func(store: &mut Store<()>) -> Func {
+  fn func(store: &mut Store<SycContext>) -> Func {
     Func::wrap(
       store,
-      |mut caller: Caller<'_, ()>, offset: i32, len: i32| {
+      |mut caller: Caller<'_, SycContext>, offset: i32, len: i32| {
         let data = &caller
           .get_export("main_memory")
           .unwrap()
@@ -131,10 +131,10 @@ impl StdLib for Print {
       .imports
       .import("std", Some("print"), EntityType::Function(fn_num));
   }
-  fn func(store: &mut Store<()>) -> Func {
+  fn func(store: &mut Store<SycContext>) -> Func {
     Func::wrap(
       store,
-      |mut caller: Caller<'_, ()>, offset: i32, len: i32| {
+      |mut caller: Caller<'_, SycContext>, offset: i32, len: i32| {
         let data = &caller
           .get_export("main_memory")
           .unwrap()

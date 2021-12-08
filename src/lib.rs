@@ -1,4 +1,5 @@
 mod codegen;
+mod context;
 mod parser;
 mod standard_library;
 mod types;
@@ -7,7 +8,7 @@ pub use codegen::*;
 pub use parser::*;
 pub use types::*;
 
-use crate::{codegen::StdLib, standard_library::*};
+use crate::{codegen::StdLib, context::SycContext, standard_library::*};
 use std::{error::Error, fs, path::PathBuf};
 use wasmtime::*;
 
@@ -30,8 +31,9 @@ pub fn run(wasm: Vec<u8>, debug: bool) -> Result<(), Box<dyn Error>> {
     println!("------------------ Code Execution ------------------");
   }
   let engine = Engine::default();
+  let ctx = SycContext::from_sycamore_binary(&wasm);
   let module = Module::new(&engine, wasm)?;
-  let mut store = Store::new(&engine, ());
+  let mut store = Store::new(&engine, ctx);
   let std_funcs = [
     Print::func(&mut store).into(),
     // add println
