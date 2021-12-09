@@ -65,10 +65,7 @@ impl StdLib for PrintLn {
         .unwrap()
         .data(caller.as_context());
       let (offset, len) = caller.data().literal_offsets[lit as usize];
-      println!(
-        "{}",
-        std::str::from_utf8(&data[offset as usize..len as usize]).unwrap()
-      );
+      println!("{}", std::str::from_utf8(&data[offset..len]).unwrap());
     })
   }
 }
@@ -136,10 +133,7 @@ impl StdLib for Print {
         .unwrap()
         .data(caller.as_context());
       let (offset, len) = caller.data().literal_offsets[lit as usize];
-      print!(
-        "{}",
-        std::str::from_utf8(&data[offset as usize..len as usize]).unwrap()
-      );
+      print!("{}", std::str::from_utf8(&data[offset..len]).unwrap());
     })
   }
 }
