@@ -16,6 +16,7 @@ pub struct Codegen {
   pub literal_table: Vec<String>,
   pub fn_map: HashMap<String, u32>,
   pub current_func: Option<Function>,
+  pub ctx: SycContext,
 }
 
 impl Codegen {
@@ -34,6 +35,7 @@ impl Codegen {
       literal_table: Vec::new(),
       fn_map: HashMap::new(),
       current_func: None,
+      ctx: SycContext::new(),
     }
   }
 
@@ -81,8 +83,8 @@ impl Codegen {
     self.main_mod.section(&self.codes);
     self.main_mod.section(&self.data);
     self.main_mod.section(&CustomSection {
-      name: "lmao",
-      data: b"lmaaaaaaaaao",
+      name: "SycContext",
+      data: &bincode::serialize(&self.ctx).unwrap(),
     });
     // Create and validate
     let debug = self.debug;

@@ -22,26 +22,27 @@ impl Generate for PrintLn {
       if offset > 0 {
         offset += 1;
       }
-      offset as i32
+      offset
     };
-    codegen
-      .data
-      .active(0, &Instruction::I32Const(offset), literal.as_str().bytes());
-    codegen
-      .current_func
-      .as_mut()
-      .unwrap()
-      .instruction(&Instruction::I32Const(offset));
+    codegen.data.active(
+      0,
+      &Instruction::I32Const(offset as i32),
+      literal.as_str().bytes(),
+    );
     codegen
       .current_func
       .as_mut()
       .unwrap()
-      .instruction(&Instruction::I32Const(offset + literal.len() as i32));
+      .instruction(&Instruction::I32Const(codegen.literal_table.len() as i32));
     codegen
       .current_func
       .as_mut()
       .unwrap()
       .instruction(&Instruction::Call(1));
+    codegen
+      .ctx
+      .literal_offsets
+      .push((offset, offset + literal.len()));
     codegen.literal_table.push(literal.as_str().into());
   }
 }
@@ -49,30 +50,26 @@ impl Generate for PrintLn {
 impl StdLib for PrintLn {
   fn import(codegen: &mut Codegen) {
     let fn_num = codegen.fn_map.len() as u32;
-    codegen
-      .types
-      .function(vec![ValType::I32, ValType::I32], Vec::new());
+    codegen.types.function(vec![ValType::I32], Vec::new());
     codegen.fn_map.entry("println".into()).or_insert(fn_num);
     codegen
       .imports
       .import("std", Some("println"), EntityType::Function(fn_num));
   }
   fn func(store: &mut Store<SycContext>) -> Func {
-    Func::wrap(
-      store,
-      |mut caller: Caller<'_, SycContext>, offset: i32, len: i32| {
-        let data = &caller
-          .get_export("main_memory")
-          .unwrap()
-          .into_memory()
-          .unwrap()
-          .data(caller.as_context());
-        println!(
-          "{}",
-          std::str::from_utf8(&data[offset as usize..len as usize]).unwrap()
-        );
-      },
-    )
+    Func::wrap(store, |mut caller: Caller<'_, SycContext>, lit: i32| {
+      let data = &caller
+        .get_export("main_memory")
+        .unwrap()
+        .into_memory()
+        .unwrap()
+        .data(caller.as_context());
+      let (offset, len) = caller.data().literal_offsets[lit as usize];
+      println!(
+        "{}",
+        std::str::from_utf8(&data[offset as usize..len as usize]).unwrap()
+      );
+    })
   }
 }
 
@@ -96,26 +93,27 @@ impl Generate for Print {
       if offset > 0 {
         offset += 1;
       }
-      offset as i32
+      offset
     };
-    codegen
-      .data
-      .active(0, &Instruction::I32Const(offset), literal.as_str().bytes());
-    codegen
-      .current_func
-      .as_mut()
-      .unwrap()
-      .instruction(&Instruction::I32Const(offset));
+    codegen.data.active(
+      0,
+      &Instruction::I32Const(offset as i32),
+      literal.as_str().bytes(),
+    );
     codegen
       .current_func
       .as_mut()
       .unwrap()
-      .instruction(&Instruction::I32Const(offset + literal.len() as i32));
+      .instruction(&Instruction::I32Const(codegen.literal_table.len() as i32));
     codegen
       .current_func
       .as_mut()
       .unwrap()
       .instruction(&Instruction::Call(0));
+    codegen
+      .ctx
+      .literal_offsets
+      .push((offset, offset + literal.len()));
     codegen.literal_table.push(literal.as_str().into());
   }
 }
@@ -123,30 +121,26 @@ impl Generate for Print {
 impl StdLib for Print {
   fn import(codegen: &mut Codegen) {
     let fn_num = codegen.fn_map.len() as u32;
-    codegen
-      .types
-      .function(vec![ValType::I32, ValType::I32], Vec::new());
+    codegen.types.function(vec![ValType::I32], Vec::new());
     codegen.fn_map.entry("print".into()).or_insert(fn_num);
     codegen
       .imports
       .import("std", Some("print"), EntityType::Function(fn_num));
   }
   fn func(store: &mut Store<SycContext>) -> Func {
-    Func::wrap(
-      store,
-      |mut caller: Caller<'_, SycContext>, offset: i32, len: i32| {
-        let data = &caller
-          .get_export("main_memory")
-          .unwrap()
-          .into_memory()
-          .unwrap()
-          .data(caller.as_context());
-        print!(
-          "{}",
-          std::str::from_utf8(&data[offset as usize..len as usize]).unwrap()
-        );
-      },
-    )
+    Func::wrap(store, |mut caller: Caller<'_, SycContext>, lit: i32| {
+      let data = &caller
+        .get_export("main_memory")
+        .unwrap()
+        .into_memory()
+        .unwrap()
+        .data(caller.as_context());
+      let (offset, len) = caller.data().literal_offsets[lit as usize];
+      print!(
+        "{}",
+        std::str::from_utf8(&data[offset as usize..len as usize]).unwrap()
+      );
+    })
   }
 }
 
