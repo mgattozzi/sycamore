@@ -94,12 +94,6 @@ impl Codegen {
       println!("{}", wabt::wasm2wat(&wasm).unwrap_or(String::new()));
     }
 
-    // // We should *not* generate incorrect wasm at all. This checks that we don't
-    // // do that.
-    // if let Err(e) = wasmparser::validate(&wasm) {
-    //   panic!("{}", e);
-    // }
-
     wasm
   }
 }
