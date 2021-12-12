@@ -1,6 +1,6 @@
 use crate::{context::SycContext, Codegen, Generate, StdLib, StrLit};
 use wasm_encoder::*;
-use wasmtime::{AsContext, Caller, Func, Store};
+use wasmtime::{Caller, Func, Store};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct PrintLn(StrLit);
@@ -58,13 +58,8 @@ impl StdLib for PrintLn {
   }
   fn func(store: &mut Store<SycContext>) -> Func {
     Func::wrap(store, |mut caller: Caller<'_, SycContext>, lit: i32| {
-      let data = &caller
-        .get_export("main_memory")
-        .unwrap()
-        .into_memory()
-        .unwrap()
-        .data(caller.as_context());
       let (offset, len) = caller.data().literal_offsets[lit as usize];
+      let data = &caller.get_memory("main_memory");
       println!("{}", std::str::from_utf8(&data[offset..len]).unwrap());
     })
   }
@@ -126,13 +121,8 @@ impl StdLib for Print {
   }
   fn func(store: &mut Store<SycContext>) -> Func {
     Func::wrap(store, |mut caller: Caller<'_, SycContext>, lit: i32| {
-      let data = &caller
-        .get_export("main_memory")
-        .unwrap()
-        .into_memory()
-        .unwrap()
-        .data(caller.as_context());
       let (offset, len) = caller.data().literal_offsets[lit as usize];
+      let data = &caller.get_memory("main_memory");
       print!("{}", std::str::from_utf8(&data[offset..len]).unwrap());
     })
   }
@@ -141,4 +131,15 @@ impl StdLib for Print {
 pub fn import_stdlib(codegen: &mut Codegen) {
   Print::import(codegen);
   PrintLn::import(codegen);
+}
+
+pub trait CallerExt {
+  fn get_memory(&mut self, mem: &str) -> &'_ [u8];
+}
+
+impl CallerExt for Caller<'_, SycContext> {
+  fn get_memory(&mut self, mem: &str) -> &'_ [u8] {
+    let memory = self.get_export(mem).unwrap().into_memory().unwrap();
+    memory.data(self)
+  }
 }
