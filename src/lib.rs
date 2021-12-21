@@ -1,16 +1,13 @@
 mod codegen;
 mod context;
 mod parser;
-mod standard_library;
 mod types;
+mod wasi;
 
-pub use codegen::*;
-pub use parser::*;
-pub use types::*;
-
-use crate::{codegen::StdLib, context::SycContext, standard_library::*};
+use crate::{codegen::Codegen, context::SycContext, parser::SycParser, wasi::wasi_linker};
 use std::{error::Error, fs, path::PathBuf};
 use wasmtime::*;
+use wasmtime_wasi::sync::WasiCtxBuilder;
 
 pub fn build(path: &mut PathBuf, debug: bool) -> Result<Vec<u8>, Box<dyn Error>> {
   let input = fs::read_to_string(&path)?;
@@ -30,17 +27,22 @@ pub fn run(wasm: Vec<u8>, debug: bool) -> Result<(), Box<dyn Error>> {
   if debug {
     println!("------------------ Code Execution ------------------");
   }
+
   let engine = Engine::default();
-  let ctx = SycContext::from_sycamore_binary(&wasm);
+  let mut linker = Linker::new(&engine);
+  wasi_linker(&mut linker)?;
+  let mut ctx = SycContext::from_sycamore_binary(&wasm);
+  ctx.wasi = Some(
+    WasiCtxBuilder::new()
+      .inherit_stdio()
+      .inherit_args()?
+      .build(),
+  );
+
   let module = Module::new(&engine, wasm)?;
   let mut store = Store::new(&engine, ctx);
-  let std_funcs = [
-    Print::func(&mut store).into(),
-    // add println
-    PrintLn::func(&mut store).into(),
-  ];
-  let instance = Instance::new(&mut store, &module, &std_funcs)?;
-  let main = instance.get_typed_func::<(), (), _>(&mut store, "main")?;
+  let instance = linker.instantiate(&mut store, &module)?;
+  let main = instance.get_typed_func::<(), (), _>(&mut store, "_start")?;
   main.call(&mut store, ())?;
 
   Ok(())

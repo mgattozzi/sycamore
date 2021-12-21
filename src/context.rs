@@ -1,15 +1,19 @@
 use serde::{Deserialize, Serialize};
 use wasmparser::{Parser, Payload};
+use wasmtime_wasi::WasiCtx;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct SycContext {
   pub literal_offsets: Vec<(usize, usize)>,
+  #[serde(skip)]
+  pub wasi: Option<WasiCtx>,
 }
 
 impl SycContext {
   pub fn new() -> Self {
     Self {
       literal_offsets: Vec::new(),
+      wasi: None,
     }
   }
   pub fn from_sycamore_binary(wasm: &[u8]) -> Self {

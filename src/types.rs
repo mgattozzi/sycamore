@@ -1,4 +1,7 @@
-use crate::{Codegen, Generate, Print, PrintLn};
+use crate::{
+  codegen::{Codegen, Generate},
+  wasi::Wasi,
+};
 use std::collections::HashMap;
 use wasm_encoder::*;
 
@@ -18,8 +21,7 @@ pub enum Statement {
     name: Ident,
     input: Vec<Type>,
   },
-  Print(Print),
-  PrintLn(PrintLn),
+  Wasi(Wasi),
   Terminate,
 }
 
@@ -44,7 +46,7 @@ impl Generate for Statement {
           codegen.functions.function(function_num);
           codegen
             .exports
-            .export("main", Export::Function(function_num));
+            .export("_start", Export::Function(function_num));
         } else {
           codegen.functions.function(function_num);
         }
@@ -80,8 +82,7 @@ impl Generate for Statement {
             Statement::Terminate => {
               // TODO: actually do something with this
             }
-            Statement::Print(print) => print.generate(codegen),
-            Statement::PrintLn(println) => println.generate(codegen),
+            Statement::Wasi(wasi) => wasi.generate(codegen),
             Statement::FnCall { name, .. } => {
               codegen.current_func.as_mut().map(|f| {
                 f.instruction(&Instruction::Call(

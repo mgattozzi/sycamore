@@ -1,4 +1,4 @@
-use crate::{context::SycContext, standard_library, Statement};
+use crate::{context::SycContext, types::Statement};
 use std::collections::HashMap;
 use wasm_encoder::*;
 
@@ -39,24 +39,42 @@ impl Codegen {
     }
   }
 
+  pub fn instruction(&mut self, instruction: Instruction) {
+    self
+      .current_func
+      .as_mut()
+      .unwrap()
+      .instruction(&instruction);
+  }
+
+  fn wasi_imports(&mut self) {
+    self.types.function(
+      vec![ValType::I32, ValType::I32, ValType::I32, ValType::I32],
+      vec![ValType::I32],
+    );
+    self.fn_map.insert("fd_write".into(), 0);
+    self
+      .imports
+      .import("wasi_unstable", Some("fd_write"), EntityType::Function(0));
+  }
+
   fn finish(self) -> Vec<u8> {
     self.main_mod.finish().to_vec()
   }
 
   pub fn generate(mut self) -> Vec<u8> {
+    self.wasi_imports();
     self.memory.memory(MemoryType {
       minimum: 1,
       maximum: None,
       memory64: false,
     });
 
-    self.exports.export("main_memory", Export::Memory(0));
+    self.exports.export("memory", Export::Memory(0));
 
-    // Imports *must* happen first for the func number to be correct. We start
-    // off with stdlib so that we import everything we need. Then when we
-    // actually can import multiple files we would import other modules here and
-    // link them.
-    standard_library::import_stdlib(&mut self);
+    // Setup the new line for printing with a newline
+    self.literal_table.push("\n".into());
+    self.data.active(0, &Instruction::I32Const(5), ['\n' as u8]);
 
     // Setup the function map and types after our import so that we can make
     // calls to them properly everywhere.
@@ -100,9 +118,4 @@ impl Codegen {
 
 pub trait Generate {
   fn generate(&self, codegen: &mut Codegen);
-}
-
-pub trait StdLib: Generate {
-  fn import(codegen: &mut Codegen);
-  fn func(store: &mut wasmtime::Store<SycContext>) -> wasmtime::Func;
 }
