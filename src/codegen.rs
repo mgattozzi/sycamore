@@ -1,6 +1,9 @@
-use crate::{context::SycContext, types::Statement};
+use crate::{context::SycContext, types::Statement, wasi::WasiFnHelpers};
 use std::collections::HashMap;
 use wasm_encoder::*;
+
+pub const MAX_MEM: i32 = 65536;
+pub const RESULT_IDX: i32 = MAX_MEM - 4;
 
 pub struct Codegen {
   pub debug: bool,
@@ -47,17 +50,6 @@ impl Codegen {
       .instruction(&instruction);
   }
 
-  fn wasi_imports(&mut self) {
-    self.types.function(
-      vec![ValType::I32, ValType::I32, ValType::I32, ValType::I32],
-      vec![ValType::I32],
-    );
-    self.fn_map.insert("fd_write".into(), 0);
-    self
-      .imports
-      .import("wasi_unstable", Some("fd_write"), EntityType::Function(0));
-  }
-
   fn finish(self) -> Vec<u8> {
     self.main_mod.finish().to_vec()
   }
@@ -74,7 +66,7 @@ impl Codegen {
 
     // Setup the new line for printing with a newline
     self.literal_table.push("\n".into());
-    self.data.active(0, &Instruction::I32Const(5), ['\n' as u8]);
+    self.data.active(0, &Instruction::I32Const(0), ['\n' as u8]);
 
     // Setup the function map and types after our import so that we can make
     // calls to them properly everywhere.
