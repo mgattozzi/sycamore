@@ -5,6 +5,8 @@ use crate::{
 use logos::{Logos, SpannedIter};
 use std::{iter::Peekable, ops::Range};
 
+/// A parser for a sycamore program. Given an input it will generate a
+/// `Vec<Statement>` for use in a `Codegen` to create the output of the program
 pub struct SycParser<'lex> {
   input: &'lex str,
   lex: Peekable<SpannedIter<'lex, Token>>,
@@ -12,6 +14,7 @@ pub struct SycParser<'lex> {
 }
 
 impl<'lex> SycParser<'lex> {
+  /// Create a new `SycParser`
   pub fn new(input: &'lex str) -> Self {
     let lex = Token::lexer(input).spanned().peekable();
     Self {
@@ -20,15 +23,20 @@ impl<'lex> SycParser<'lex> {
       current: None,
     }
   }
+  /// Get the slice of the `&str` for the current token
   pub fn slice(&self) -> &'lex str {
     &self.input[self.current.as_ref().unwrap().1.clone()]
   }
+
+  /// Assume we get the next token and consume it. Panic with the given error
+  /// string if this is not the case.
   pub fn expect(&mut self, t: Token, err: &str) {
     if self.next() != t {
       panic!("{}", err);
     }
   }
 
+  /// Get the next `Token` to operate on
   pub fn next(&mut self) -> Token {
     match self.lex.next() {
       Some((t, r)) => {
@@ -39,39 +47,47 @@ impl<'lex> SycParser<'lex> {
     }
   }
 
+  /// Check if the next `Token` is equal to the given `Token`
   pub fn peek(&mut self, tok: Token) -> bool {
     self.lex.peek().map(|(t, _)| t) == Some(&tok)
   }
 
+  /// Create an `Ident`
   pub fn ident(&mut self) -> Ident {
     self.expect(Token::Identifier, "No ident token");
     self.mk_ident()
   }
 
+  /// Make an `Ident` from the given slice
   pub fn mk_ident(&mut self) -> Ident {
     Ident::new(self.slice())
   }
 
+  /// Make a number from the given token
   pub fn mk_number(&mut self) -> SycValue {
     SycValue::I32(self.slice().parse::<i32>().expect("An i32 number"))
   }
 
+  /// Create a `StrLit`
   pub fn string_literal(&mut self) -> StrLit {
     self.expect(Token::StringLiteral, "No ident token");
     self.mk_str_lit()
   }
 
+  /// Make a `StrLit` from the given slice
   pub fn mk_str_lit(&mut self) -> StrLit {
     let slice = self.slice();
     // Get rid of the quotes here
     StrLit::new(&slice[1..slice.len() - 1])
   }
 
+  /// Get the next token if it exists
   pub fn next_opt(&mut self) -> Option<Token> {
     self.current = self.lex.next();
     self.current.as_ref().map(|c| c.0)
   }
 
+  /// Parse args for a function call
   pub fn parse_args(&mut self) -> Vec<Type> {
     self.expect(Token::LParen, "No LParen token for args");
     let args = Vec::new();
@@ -80,6 +96,7 @@ impl<'lex> SycParser<'lex> {
       _ => unimplemented!("Args"),
     }
   }
+  /// Parse a block of statements
   pub fn parse_block(&mut self) -> Vec<Statement> {
     let mut block = Vec::new();
     self.expect(Token::LCurly, "No LCurly token for block");
@@ -129,6 +146,7 @@ impl<'lex> SycParser<'lex> {
     block
   }
 
+  /// Parse the input into the final output
   pub fn parse(mut self) -> Vec<Statement> {
     let mut statements = Vec::new();
     loop {
@@ -161,6 +179,7 @@ impl<'lex> SycParser<'lex> {
   }
 }
 
+/// All the valid tokens in a sycamore program
 #[derive(Logos, Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Token {
   // Assignment

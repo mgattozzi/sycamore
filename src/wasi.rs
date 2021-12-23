@@ -25,6 +25,7 @@ pub enum Wasi {
 }
 
 impl Wasi {
+  /// Is this WASI item a call to `Println`
   fn is_println(&self) -> bool {
     match self {
       Wasi::Println(_) => true,
@@ -34,6 +35,7 @@ impl Wasi {
 }
 
 impl Generate for Wasi {
+  /// Generate code for WASI statements
   fn generate(&self, codegen: &mut Codegen) {
     match self {
       Wasi::Print(literal) | Wasi::Println(literal) => {
@@ -75,11 +77,13 @@ impl Generate for Wasi {
 /// File Descriptor for the location of standard out
 const STDOUT: i32 = 1;
 
+/// Function helpers for code generation with the `Codegen` type
 pub trait WasiFnHelpers {
   fn write_io_vec(&mut self, io_vec: Vec<IoVecItem>) -> i32;
   fn wasi_imports(&mut self);
 }
 
+/// Function code generation for WASI for use in the `Codegen` type
 pub trait WasiFns {
   fn fd_write(&mut self, fd: i32, io_vec: Vec<IoVecItem>);
 }

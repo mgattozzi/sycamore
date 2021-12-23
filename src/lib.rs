@@ -9,6 +9,7 @@ use std::{error::Error, fs, path::PathBuf};
 use wasmtime::*;
 use wasmtime_wasi::sync::WasiCtxBuilder;
 
+/// Build a sycamore program from a given file path
 pub fn build(path: &mut PathBuf, debug: bool) -> Result<Vec<u8>, Box<dyn Error>> {
   let input = fs::read_to_string(&path)?;
   if debug {

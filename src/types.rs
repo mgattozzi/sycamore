@@ -5,23 +5,26 @@ use crate::{
 use std::collections::HashMap;
 use wasm_encoder::*;
 
+/// A `Statement` is the top level item in a sycamore program. It can define
+/// items like states or do things inside of them such as `Assignment` or
+/// `FnCall`s. A program is a `Vec<Statement>` that gets passed to a `Codegen`
+/// in order for code to be generated for it
 #[derive(Debug, Clone)]
 pub enum Statement {
-  Assignment {
-    name: Ident,
-    value: SycValue,
-  },
+  /// Assigns a value to an `Ident`
+  Assignment { name: Ident, value: SycValue },
+  /// Defines a state for the program
   StateDefn {
     terminating: bool,
     name: Ident,
     input: Vec<Type>,
     statements: Vec<Statement>,
   },
-  FnCall {
-    name: Ident,
-    input: Vec<Type>,
-  },
+  /// Makes a function call for a program
+  FnCall { name: Ident, input: Vec<Type> },
+  /// Makes a WASI function call
   Wasi(Wasi),
+  /// Terminates the program
   Terminate,
 }
 
@@ -110,33 +113,41 @@ pub enum Type {
   I32,
 }
 
+/// An identifier for a state, variable, or something else
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Ident(String);
 
 impl Ident {
+  /// Create a new `Ident`
   pub fn new(input: impl ToString) -> Self {
     Self(input.to_string())
   }
+  /// Get an `&str` of the `Ident`
   pub fn as_str(&self) -> &str {
     &self.0
   }
 }
 
+/// A string literal defined in the source code
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct StrLit(String);
 
 impl StrLit {
+  /// Create a new `StrLit`
   pub fn new(input: impl ToString) -> Self {
     Self(input.to_string())
   }
+  /// Get an `&str` of the `StrLit`
   pub fn as_str(&self) -> &str {
     &self.0
   }
+  /// Get the length of the `StrLit`
   pub fn len(&self) -> usize {
     self.0.len()
   }
 }
 
+/// A sycamore program type and the value of said type
 #[derive(Debug, Clone)]
 pub enum SycValue {
   I32(i32),
@@ -147,6 +158,7 @@ impl SycValue {
   pub fn from_i32(input: i32) -> Self {
     Self::I32(input)
   }
+
   pub fn as_val_type(&self) -> ValType {
     match self {
       Self::I32(_) => ValType::I32,

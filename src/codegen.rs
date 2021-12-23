@@ -2,6 +2,7 @@ use crate::{context::SycContext, types::Statement, wasi::WasiFnHelpers};
 use std::collections::HashMap;
 use wasm_encoder::*;
 
+/// Largest idx in mem where each increase by 1 is 8 bytes
 pub const MAX_MEM: i32 = 65536;
 pub const RESULT_IDX: i32 = MAX_MEM - 4;
 
